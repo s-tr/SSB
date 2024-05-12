@@ -72,7 +72,7 @@ def generate_initial_yields(DF):
 
     return C
 
-# Given a bond with coupon C[0..10] for years 1 to 10, return an array
+# Given a bond with coupon C[0..9] for years 1 to 10, return an array
 # C_a[0..9] containing the expected yield if it is redeemed after
 # 1..10 years.
 def average_yields(C):
@@ -105,15 +105,15 @@ def average_yields(C):
 # Given an array containing the 1, 2, 5 and 10 year average bond yields,
 # return the predicted Singapore Savings Bond yields for 1..10 years.
 # 
-# Expects and returns values in absolute terms, not percentages.
-# e.g. for a value of 3%, input and output will be 0.03
+# By default, expects and returns values in absolute terms, not percentages.
+# e.g. for a value of 3%, input and output will be 0.03.
 #
 # Pass in `debug=True` to have this function print information on
 # intermediate results.
-def ssb(raw_yields, debug=False):
+def ssb_solve(raw_yields, debug=False):
     # Utility function.
     def to_percent_string(val):
-        return '{:.2f}%'.format(round(val*100,2))
+        return '{:.4f}%'.format(round(val*100,4))
     def print_percents(title, arr):
         if debug:
             print(title + ": " + ", ".join(map(to_percent_string, arr)))
@@ -178,7 +178,7 @@ def ssb(raw_yields, debug=False):
         objective_function += E[i]**2
     objective = cp.Minimize(objective_function)
 
-    opt = cp.Problem(objective, constraints).solve()
+    opt = cp.Problem(objective, constraints).solve(eps_abs=1e-6,eps_rel=1e-6)
 
     # 8. Read off the values of C.
     C_opt = [C[i].value[0] for i in range(1,11)]
@@ -186,4 +186,29 @@ def ssb(raw_yields, debug=False):
     print_percents("Y*", average_yields(C_opt))
 
     return C_opt
+
+# Given an array containing the 1, 2, 5 and 10 year average bond yields,
+# return the predicted Singapore Savings Bond yields for 1..10 years.
+# 
+# This function expects and returns values in percentage terms,
+# e.g. for a value of 3%, input and output will be 3.
+#
+# By default, results are rounded to 2 decimal places. To get the raw
+# results without rounding, pass `rounding=False`.
+#
+# Pass in `debug=True` to have this function print information on
+# intermediate results.
+def ssb(benchmark_yields, debug=False, rounding=True):
+    benchmark_yields = [x/100 for x in benchmark_yields]
+
+    raw_result = ssb_solve(benchmark_yields, debug=debug)
+    if rounding:
+        result_percents = [round(100*x + 0.0000001, 2) for x in raw_result]
+        if debug:
+            resid = [round(10000*(p-100*x)) for p,x in zip(result_percents,raw_result)]
+            print("Rounding: " + str(resid))
+    else:
+        result_percents = [100*x for x in raw_result]
+
+    return result_percents
 
